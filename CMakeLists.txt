@@ -6,7 +6,7 @@
 # # *****************************************************************************
 
 # CMake Requirement
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.15)
 
 # C++ requirement
 set(CMAKE_CXX_STANDARD 17)
