@@ -48,21 +48,25 @@ REMOTE_MEMORY="${MOE_DIR:?}/remote_memory.json"
 echo "[ASTRA-sim] Generating Chakra trace..."
 echo ""
 
+# cd ${CHAKRA_DIR}
+# pip3 install .
+
 ${CHAKRA_CONVERTER} Text \
-    --input="${WORKLOAD_TXT:?}" \
-    --output="${WORKLOAD_PREFIX:?}"\
+    --input=${WORKLOAD_TXT} \
+    --output=${WORKLOAD_PREFIX} \
     --num-npus=8 \
     --num-passes=1
 
 echo "[ASTRA-sim] Running ASTRA-sim Example with Analytical Network Backend..."
 echo ""
 
-# run ASTRA-sim
+# run ASTRA-sim\
+echo $WORKLOAD_PREFIX
 ${ASTRA_SIM} \
-    --workload-configuration="${WORKLOAD}" \
-    --system-configuration="${SYSTEM:?}" \
-    --remote-memory-configuration="${REMOTE_MEMORY:?}" \
-    --network-configuration="${NETWORK:?}"
+    --workload-configuration=${WORKLOAD_PREFIX} \
+    --system-configuration=${SYSTEM} \
+    --remote-memory-configuration=${REMOTE_MEMORY} \
+    --network-configuration=${NETWORK}
 
 # finalize
 echo ""
