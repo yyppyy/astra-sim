@@ -6,6 +6,8 @@
 # cd ${ASTRA_SIM}
 # git submodule update --init --recursive
 # ./build/astra_analytical/build.sh
+# or for debug
+# ./build/astra_analytical/build.sh -d
 
 
 # compile chakra: 
@@ -61,7 +63,6 @@ echo "[ASTRA-sim] Running ASTRA-sim Example with Analytical Network Backend..."
 echo ""
 
 # run ASTRA-sim\
-echo $WORKLOAD_PREFIX
 ${ASTRA_SIM} \
     --workload-configuration=${WORKLOAD_PREFIX} \
     --system-configuration=${SYSTEM} \
