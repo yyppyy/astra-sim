@@ -53,14 +53,16 @@ echo ""
 # cd ${CHAKRA_DIR}
 # pip3 install .
 
-${CHAKRA_CONVERTER} Text \
+${CHAKRA_CONVERTER} Yaml \
     --input=${WORKLOAD_TXT} \
     --output=${WORKLOAD_PREFIX} \
-    --num-npus=8 \
-    --num-passes=1
-
+    --num-npus=8
+    
 echo "[ASTRA-sim] Running ASTRA-sim Example with Analytical Network Backend..."
 echo ""
+
+# visualize
+# chakra_visualizer --input_filename moe/workload/deepseek.0.et --output_filename=moe/workload/tmp.pdf
 
 # run ASTRA-sim\
 ${ASTRA_SIM} \

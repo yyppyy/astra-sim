@@ -357,7 +357,7 @@ void Workload::call(EventType event, CallData* data) {
         if (sys->trace_enabled) {
             LoggerFactory::get_logger("workload")
                 ->debug("callback,sys->id={}, tick={}, node->id={}, "
-                        "node->name={}, node->type={}",
+                        "node->name={}, node->type={}, CollectiveCommunicationFinished",
                         sys->id, Sys::boostedTick(), node->id(), node->name(),
                         static_cast<uint64_t>(node->type()));
         }
