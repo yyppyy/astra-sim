@@ -1,4 +1,4 @@
-topology: [ Ring ]
+topology: [ Mesh ]
 npus_count: [ 8 ]
-bandwidth: [ 50.0 ]  # GB/s
-latency: [ 500.0 ]  # ns
+bandwidth: [ 32.0 ]  # GB/s
+latency: [ 4.0 ]  # ns
