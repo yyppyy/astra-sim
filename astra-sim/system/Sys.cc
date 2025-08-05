@@ -27,6 +27,7 @@ LICENSE file in the root directory of this source tree.
 #include "astra-sim/system/astraccl/native_collectives/collective_algorithm/DoubleBinaryTreeAllReduce.hh"
 #include "astra-sim/system/astraccl/native_collectives/collective_algorithm/HalvingDoubling.hh"
 #include "astra-sim/system/astraccl/native_collectives/collective_algorithm/Ring.hh"
+#include "astra-sim/system/astraccl/native_collectives/collective_algorithm/MeshXY.hh"
 #include "astra-sim/system/scheduling/OfflineGreedy.hh"
 #include "astra-sim/system/astraccl/native_collectives/logical_topology/BasicLogicalTopology.hh"
 #include "astra-sim/system/astraccl/native_collectives/logical_topology/GeneralComplexTopology.hh"
@@ -524,6 +525,8 @@ CollectiveImpl* Sys::generate_collective_impl_from_input(
         return new CollectiveImpl(CollectiveImplType::HalvingDoubling);
     } else if (collective_impl_str == "oneHalvingDoubling") {
         return new CollectiveImpl(CollectiveImplType::OneHalvingDoubling);
+    } else if (collective_impl_str == "meshXY") {
+        return new CollectiveImpl(CollectiveImplType::MeshXY);
     } else {
         sys_panic("Cannot interpret collective implementations. Please check "
                   "the collective implementations in the sys"
@@ -718,12 +721,22 @@ DataSet* Sys::generate_all_reduce(uint64_t size,
 DataSet* Sys::generate_all_to_all(uint64_t size,
                                   vector<bool> involved_dimensions,
                                   CommunicatorGroup* communicator_group,
-                                  int explicit_priority) {
+                                  int explicit_priority,
+                                int part_x,
+                                int part_y,
+                                bool inter_part,
+                                std::vector<std::pair<int, int>> alltoall_send_matrix,
+                                std::vector<std::pair<int, int>> alltoall_recv_matrix) {
     if (communicator_group == nullptr) {
         return generate_collective(size, logical_topologies["AllToAll"],
                                    all_to_all_implementation_per_dimension,
                                    involved_dimensions, ComType::All_to_All,
-                                   explicit_priority, communicator_group);
+                                   explicit_priority, communicator_group,
+                                    part_x,
+                                    part_y,
+                                    inter_part,
+                                    alltoall_send_matrix,
+                                    alltoall_recv_matrix);
     } else {
         CollectivePlan* plan =
             communicator_group->get_collective_plan(ComType::All_to_All);
@@ -737,12 +750,18 @@ DataSet* Sys::generate_all_to_all(uint64_t size,
 DataSet* Sys::generate_all_gather(uint64_t size,
                                   vector<bool> involved_dimensions,
                                   CommunicatorGroup* communicator_group,
-                                  int explicit_priority) {
+                                  int explicit_priority,
+                                int part_x,
+                                int part_y,
+                                bool inter_part) {
     if (communicator_group == nullptr) {
         return generate_collective(size, logical_topologies["AllGather"],
                                    all_gather_implementation_per_dimension,
                                    involved_dimensions, ComType::All_Gather,
-                                   explicit_priority, communicator_group);
+                                   explicit_priority, communicator_group,
+                                    part_x,
+                                    part_y,
+                                    inter_part);
     } else {
         CollectivePlan* plan =
             communicator_group->get_collective_plan(ComType::All_Gather);
@@ -756,12 +775,18 @@ DataSet* Sys::generate_all_gather(uint64_t size,
 DataSet* Sys::generate_reduce_scatter(uint64_t size,
                                       vector<bool> involved_dimensions,
                                       CommunicatorGroup* communicator_group,
-                                      int explicit_priority) {
+                                      int explicit_priority,
+                                    int part_x,
+                                    int part_y,
+                                    bool inter_part) {
     if (communicator_group == nullptr) {
         return generate_collective(size, logical_topologies["ReduceScatter"],
                                    reduce_scatter_implementation_per_dimension,
                                    involved_dimensions, ComType::Reduce_Scatter,
-                                   explicit_priority, communicator_group);
+                                   explicit_priority, communicator_group,
+                                    part_x,
+                                    part_y,
+                                    inter_part);
     } else {
         CollectivePlan* plan =
             communicator_group->get_collective_plan(ComType::Reduce_Scatter);
@@ -779,7 +804,13 @@ DataSet* Sys::generate_collective(
     vector<bool> dimensions_involved,
     ComType collective_type,
     int explicit_priority,
-    CommunicatorGroup* communicator_group) {
+    CommunicatorGroup* communicator_group,
+    int part_x,
+    int part_y,
+    bool inter_part,
+    std::vector<std::pair<int, int>> alltoall_send_matrix,
+    std::vector<std::pair<int, int>> alltoall_recv_matrix) {
+
     uint64_t chunk_size = determine_chunk_size(size, collective_type);
     uint64_t recommended_chunk_size = chunk_size;
     int streams = ceil(((double)size) / chunk_size);
@@ -844,6 +875,7 @@ DataSet* Sys::generate_collective(
 
         if (collective_type != ComType::All_Reduce ||
             collectiveOptimization == CollectiveOptimization::Baseline) {
+            // our added mesh algo and topo falls in here
             for (int dim = 0; dim < topology->get_num_of_dimensions(); dim++) {
                 if (topology->get_num_of_nodes_in_dimension(dim_mapper[dim]) ==
                         1 ||
@@ -858,7 +890,10 @@ DataSet* Sys::generate_collective(
                                                               collective_type),
                     remain_size, queue.first, queue.second,
                     InjectionPolicy::Normal,
-                    implementation_per_dimension[dim_mapper[dim]]);
+                    implementation_per_dimension[dim_mapper[dim]],
+                    part_x,
+                    part_y,
+                    inter_part);
                 vect.push_back(phase);
                 remain_size = phase.final_data_size;
             }
@@ -1041,7 +1076,13 @@ CollectivePhase Sys::generate_collective_phase(
     int queue_id,
     RingTopology::Direction direction,
     InjectionPolicy injection_policy,
-    CollectiveImpl* collective_impl) {
+    CollectiveImpl* collective_impl,
+    int part_x,
+    int part_y,
+    bool inter_part,
+    std::vector<std::pair<int, int>> alltoall_send_matrix,
+    std::vector<std::pair<int, int>> alltoall_recv_matrix) {
+
     if (collective_impl->type == CollectiveImplType::Ring ||
         collective_impl->type == CollectiveImplType::OneRing) {
         CollectivePhase vn(this, queue_id,
@@ -1074,6 +1115,18 @@ CollectivePhase Sys::generate_collective_phase(
     } else if (collective_impl->type == CollectiveImplType::ChakraImpl) {
         string filename = ((ChakraCollectiveImpl*)collective_impl)->filename;
         CollectivePhase vn(this, queue_id, new CustomAlgorithm(filename, id));
+        return vn;
+    } else if (collective_impl->type == CollectiveImplType::MeshXY){
+        CollectivePhase vn(this, queue_id,
+                           new MeshXY(collective_type, id,
+                                               (MeshTopology*)topology,
+                                                data_size,
+                                                injection_policy,
+                                                part_x,
+                                                part_y,
+                                                inter_part,
+                                                alltoall_send_matrix,
+                                                alltoall_recv_matrix));
         return vn;
     } else {
         LoggerFactory::get_logger("system")->critical(

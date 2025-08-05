@@ -263,7 +263,12 @@ void Workload::issue_comm(shared_ptr<Chakra::ETFeederNode> node) {
         } else if (node->comm_type() == ChakraCollectiveCommType::ALL_TO_ALL) {
             DataSet* fp =
                 sys->generate_all_to_all(node->comm_size(), involved_dim,
-                                         comm_group, node->comm_priority());
+                                         comm_group, node->comm_priority(),
+                                        node->part_x(),
+                                        node->part_y(),
+                                        node->inter_part(),
+                                        node->alltoall_send_matrix(),
+                                        node->alltoall_recv_matrix());
             collective_comm_node_id_map[fp->my_id] = node->id();
             collective_comm_wrapper_map[fp->my_id] = fp;
             fp->set_notifier(this, EventType::CollectiveCommunicationFinished);
@@ -271,7 +276,10 @@ void Workload::issue_comm(shared_ptr<Chakra::ETFeederNode> node) {
         } else if (node->comm_type() == ChakraCollectiveCommType::ALL_GATHER) {
             DataSet* fp =
                 sys->generate_all_gather(node->comm_size(), involved_dim,
-                                         comm_group, node->comm_priority());
+                                         comm_group, node->comm_priority(),
+                                        node->part_x(),
+                                        node->part_y(),
+                                        node->inter_part());
             collective_comm_node_id_map[fp->my_id] = node->id();
             collective_comm_wrapper_map[fp->my_id] = fp;
             fp->set_notifier(this, EventType::CollectiveCommunicationFinished);
@@ -280,7 +288,10 @@ void Workload::issue_comm(shared_ptr<Chakra::ETFeederNode> node) {
                    ChakraCollectiveCommType::REDUCE_SCATTER) {
             DataSet* fp =
                 sys->generate_reduce_scatter(node->comm_size(), involved_dim,
-                                             comm_group, node->comm_priority());
+                                             comm_group, node->comm_priority(),
+                                            node->part_x(),
+                                            node->part_y(),
+                                            node->inter_part());
             collective_comm_node_id_map[fp->my_id] = node->id();
             collective_comm_wrapper_map[fp->my_id] = fp;
             fp->set_notifier(this, EventType::CollectiveCommunicationFinished);

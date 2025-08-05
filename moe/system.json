@@ -4,18 +4,18 @@
     "active-chunks-per-dimension": 1,
     "preferred-dataset-splits": 4,
     "all-reduce-implementation": [
-        "ring"
+        "meshXY"
     ],
     "all-gather-implementation": [
-        "ring"
+        "meshXY"
     ],
     "reduce-scatter-implementation": [
-        "ring"
+        "meshXY"
     ],
     "all-to-all-implementation": [
-        "ring"
+        "meshXY"
     ],
-    "collective-optimization": "localBWAware",
+    "collective-optimization": "Baseline",
     "boost-mode": 0,
     "trace-enabled": 1,
     "roofline-enabled": 1,

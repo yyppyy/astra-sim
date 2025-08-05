@@ -17,6 +17,7 @@ LICENSE file in the root directory of this source tree.
 #include "astra-sim/system/Roofline.hh"
 #include "astra-sim/system/UsageTracker.hh"
 #include "astra-sim/system/astraccl/native_collectives/logical_topology/RingTopology.hh"
+#include "astra-sim/system/astraccl/native_collectives/logical_topology/MeshTopology.hh"
 #include "astra-sim/workload/Workload.hh"
 
 namespace AstraSim {
@@ -127,15 +128,26 @@ class Sys : public Callable {
     DataSet* generate_all_to_all(uint64_t size,
                                  std::vector<bool> involved_dimensions,
                                  CommunicatorGroup* communicator_group,
-                                 int explicit_priority);
+                                 int explicit_priority,
+                                int part_x = 0,
+                                int part_y = 0,
+                                bool inter_part = false,
+                                std::vector<std::pair<int, int>> alltoall_send_matrix = std::vector<std::pair<int, int>>{},
+                                std::vector<std::pair<int, int>> alltoall_recv_matrix = std::vector<std::pair<int, int>>{});
     DataSet* generate_all_gather(uint64_t size,
                                  std::vector<bool> involved_dimensions,
                                  CommunicatorGroup* communicator_group,
-                                 int explicit_priority);
+                                 int explicit_priority,
+                                int part_x = 0,
+                                int part_y = 0,
+                                bool inter_part = false);
     DataSet* generate_reduce_scatter(uint64_t size,
                                      std::vector<bool> involved_dimensions,
                                      CommunicatorGroup* communicator_group,
-                                     int explicit_priority);
+                                     int explicit_priority,
+                                    int part_x = 0,
+                                    int part_y = 0,
+                                    bool inter_part = false);
     DataSet* generate_collective(
         uint64_t size,
         LogicalTopology* topology,
@@ -143,14 +155,24 @@ class Sys : public Callable {
         std::vector<bool> dimensions_involved,
         ComType collective_type,
         int explicit_priority,
-        CommunicatorGroup* communicator_group);
+        CommunicatorGroup* communicator_group,
+        int part_x = 0,
+        int part_y = 0,
+        bool inter_part = false,
+        std::vector<std::pair<int, int>> alltoall_send_matrix = std::vector<std::pair<int, int>>{},
+        std::vector<std::pair<int, int>> alltoall_recv_matrix = std::vector<std::pair<int, int>>{});
     CollectivePhase generate_collective_phase(ComType collective_type,
                                               BasicLogicalTopology* topology,
                                               uint64_t data_size,
                                               int queue_id,
                                               RingTopology::Direction direction,
                                               InjectionPolicy injection_policy,
-                                              CollectiveImpl* collective_impl);
+                                              CollectiveImpl* collective_impl,
+                                                int part_x = 0,
+                                                int part_y = 0,
+                                                bool inter_part = false,
+                                                std::vector<std::pair<int, int>> alltoall_send_matrix = std::vector<std::pair<int, int>>{},
+                                                std::vector<std::pair<int, int>> alltoall_recv_matrix = std::vector<std::pair<int, int>>{});
     int break_dimension(int model_parallel_npu_group);
     //---------------------------------------------------------------------------
 

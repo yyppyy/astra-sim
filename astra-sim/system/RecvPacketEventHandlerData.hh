@@ -22,6 +22,12 @@ class RecvPacketEventHandlerData : public BasicEventHandlerData {
                                EventType event,
                                int vnet,
                                int stream_id);
+    RecvPacketEventHandlerData(BaseStream* owner,
+                               int sys_id,
+                               EventType event,
+                               int vnet,
+                               int stream_id,
+                               int tag);
 
     Workload* workload;
     WorkloadLayerHandlerData* wlhd;
@@ -31,6 +37,7 @@ class RecvPacketEventHandlerData : public BasicEventHandlerData {
     int stream_id;
     bool message_end;
     Tick ready_time;
+    int tag;
 };
 
 }  // namespace AstraSim
