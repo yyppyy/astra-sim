@@ -15,7 +15,7 @@
     "all-to-all-implementation": [
         "meshXY"
     ],
-    "collective-optimization": "Baseline",
+    "collective-optimization": "baseline",
     "boost-mode": 0,
     "trace-enabled": 1,
     "roofline-enabled": 1,
