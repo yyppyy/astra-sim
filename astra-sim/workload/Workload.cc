@@ -264,6 +264,8 @@ void Workload::issue_comm(shared_ptr<Chakra::ETFeederNode> node) {
             DataSet* fp =
                 sys->generate_all_to_all(node->comm_size(), involved_dim,
                                          comm_group, node->comm_priority(),
+                                        node->group_x(),
+                                        node->group_y(),
                                         node->part_x(),
                                         node->part_y(),
                                         node->inter_part(),
@@ -277,6 +279,8 @@ void Workload::issue_comm(shared_ptr<Chakra::ETFeederNode> node) {
             DataSet* fp =
                 sys->generate_all_gather(node->comm_size(), involved_dim,
                                          comm_group, node->comm_priority(),
+                                        node->group_x(),
+                                        node->group_y(),                                         
                                         node->part_x(),
                                         node->part_y(),
                                         node->inter_part());
@@ -289,6 +293,8 @@ void Workload::issue_comm(shared_ptr<Chakra::ETFeederNode> node) {
             DataSet* fp =
                 sys->generate_reduce_scatter(node->comm_size(), involved_dim,
                                              comm_group, node->comm_priority(),
+                                            node->group_x(),
+                                            node->group_y(),
                                             node->part_x(),
                                             node->part_y(),
                                             node->inter_part());

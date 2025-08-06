@@ -42,6 +42,7 @@ ASTRA_SIM="${PROJECT_DIR:?}/build/astra_analytical/build/bin/AstraSim_Analytical
 CHAKRA_CONVERTER="chakra_converter"
 MODEL="deepseek"
 WORKLOAD_TXT="${MOE_DIR:?}/${MODEL:?}.txt"
+WORKLOAD_CSV="${MOE_DIR:?}/${MODEL:?}.csv"
 WORKLOAD_PREFIX="${WORKLOAD_DIR:?}/${MODEL:?}"
 SYSTEM="${MOE_DIR:?}/system.json"
 NETWORK="${MOE_DIR:?}/network.yml"
@@ -54,9 +55,9 @@ echo ""
 # pip3 install .
 
 ${CHAKRA_CONVERTER} Yaml \
-    --input=${WORKLOAD_TXT} \
+    --input=${WORKLOAD_CSV} \
     --output=${WORKLOAD_PREFIX} \
-    --num-npus=8
+    --num-npus=1024
     
 echo "[ASTRA-sim] Running ASTRA-sim Example with Analytical Network Backend..."
 echo ""

@@ -10,11 +10,27 @@ LICENSE file in the root directory of this source tree.
 
 using namespace AstraSim;
 
+static inline int step_id_col_major(int id,
+                                 int mesh_x, int mesh_y,
+                                 int delta_x, int delta_y) {
+    if (id < 0 || mesh_x <= 0 || mesh_y <= 0) return -1;
+    int x = id / mesh_y;   // column-major unflatten
+    int y = id % mesh_y;
+
+    int nx = x + delta_x;
+    int ny = y + delta_y;
+    if (nx < 0 || nx >= mesh_x || ny < 0 || ny >= mesh_y) return -1;
+
+    return nx * mesh_y + ny;   // column-major flatten
+}
+
 MeshXY::MeshXY(ComType type,
            int id,
            MeshTopology* mesh_topology,
            uint64_t data_size,
            InjectionPolicy injection_policy,
+           int group_x,
+           int group_y,
            int part_x,
            int part_y,
            bool inter_part,
@@ -32,12 +48,19 @@ MeshXY::MeshXY(ComType type,
     this->mesh_i_ = id / this->mesh_y_;
     this->mesh_j_ = id % this->mesh_y_;
 
+    this->group_x_ = group_x;
+    this->group_x_ = group_y;
+    assert(this->mesh_x_ % group_x == 0);
+    assert(this->mesh_y_ % group_y == 0);
+    this->group_i_ = this->mesh_i_ / group_x;
+    this->group_j_ = this->mesh_i_ / group_y;
+
     this->part_x_ = part_x;
     this->part_y_ = part_y;
-    assert(this->mesh_x_ % part_x == 0);
-    assert(this->mesh_y_ % part_y == 0);
-    this->part_i_ = id / (this->mesh_x_ / part_x);
-    this->part_j_ = id / (this->mesh_y_ / part_y);
+    assert(this->group_x_ % part_x == 0);
+    assert(this->group_y_ % part_y == 0);
+    this->part_i_ = (this->mesh_i_ % group_x) / part_x;
+    this->part_j_ = (this->mesh_j_ % group_y) / part_y;
 
     assert(type != ComType::All_Reduce);
     this->inter_part_ = inter_part;
@@ -55,25 +78,33 @@ MeshXY::MeshXY(ComType type,
 
     if (inter_part) {
         int step = 0;
-        for (int i = id - this->mesh_y_ * part_x; step < this->part_i_; i -= this->mesh_y_ * part_x) {
+        for (int i = step_id_col_major(id, this->mesh_x_, this->mesh_y_, -part_x, 0);
+                step < this->part_i_;
+                i = step_id_col_major(i, this->mesh_x_, this->mesh_y_, -part_x, 0)) {
             this->ups_.push_back(i);
             this->ups_set_.insert(i);
             ++step;
         }
         step = 0;
-        for (int i = id + this->mesh_y_ * part_x; step < this->mesh_x_ / part_x - this->part_i_ - 1; i += this->mesh_y_ * part_x) {
+        for (int i = step_id_col_major(id, this->mesh_x_, this->mesh_y_, part_x, 0);
+                step < group_x / part_x - this->part_i_ - 1;
+                i = step_id_col_major(i, this->mesh_x_, this->mesh_y_, part_x, 0)) {
             this->downs_.push_back(i);
             this->downs_set_.insert(i);
             ++step;
         }
         step = 0;
-        for (int i = id - part_y; step < this->part_j_; i -= part_y) {
+        for (int i = step_id_col_major(id, this->mesh_x_, this->mesh_y_, 0, -part_y);
+                step < this->part_j_;
+                i = step_id_col_major(i, this->mesh_x_, this->mesh_y_, 0, -part_y)) {
             this->lefts_.push_back(i);
             this->lefts_set_.insert(i);
             ++step;
         }
         step = 0;
-        for (int i = id + part_y; step < this->mesh_y_ / part_y - this->part_j_ - 1; i += part_y) {
+        for (int i = step_id_col_major(id, this->mesh_x_, this->mesh_y_, 0, part_y);
+                step < group_y / part_y - this->part_j_ - 1;
+                i = step_id_col_major(i, this->mesh_x_, this->mesh_y_, 0, part_y)) {
             this->rights_.push_back(i);
             this->rights_set_.insert(i);
             ++step;
@@ -84,25 +115,33 @@ MeshXY::MeshXY(ComType type,
         // this->right = (this->part_j_ == (this->mesh_y_ / part_y - 1)) ? (-1) : (id + part_y); 
     } else {
         int step = 0;
-        for (int i = id - this->mesh_y_; step < (this->mesh_i_ % part_x); i -= this->mesh_y_) {
+        for (int i = step_id_col_major(id, this->mesh_x_, this->mesh_y_, -1, 0);
+                step < (this->mesh_i_ % part_x);
+                i = step_id_col_major(i, this->mesh_x_, this->mesh_y_, -1, 0)) {
             this->ups_.push_back(i);
             this->ups_set_.insert(i);
             ++step;
         }
         step = 0;
-        for (int i = id + this->mesh_y_; step < part_x - (this->mesh_i_ % part_x) - 1; i += this->mesh_y_) {
+        for (int i = step_id_col_major(id, this->mesh_x_, this->mesh_y_, 1, 0);
+                step < part_x - (this->mesh_i_ % part_x) - 1;
+                i = step_id_col_major(i, this->mesh_x_, this->mesh_y_, 1, 0)) {
             this->downs_.push_back(i);
             this->downs_set_.insert(i);
             ++step;
         }
         step = 0;
-        for (int i = id - 1; step < (this->mesh_j_ % part_y); --i) {
+        for (int i = step_id_col_major(id, this->mesh_x_, this->mesh_y_, 0, -1);
+                step < (this->mesh_j_ % part_y);
+                i = step_id_col_major(i, this->mesh_x_, this->mesh_y_, 0, -1)) {
             this->lefts_.push_back(i);
             this->lefts_set_.insert(i);
             ++step;
         }
         step = 0;
-        for (int i = id + 1; step < part_y - (this->mesh_j_ % part_y) - 1; ++i) {
+        for (int i = step_id_col_major(id, this->mesh_x_, this->mesh_y_, 0, 1);
+                step < part_y - (this->mesh_j_ % part_y) - 1;
+                i = step_id_col_major(i, this->mesh_x_, this->mesh_y_, 0, 1)) {
             this->rights_.push_back(i);
             this->rights_set_.insert(i);
             ++step;
@@ -114,14 +153,18 @@ MeshXY::MeshXY(ComType type,
     }
 
     // data size is already divided by N or K splits when fed in
-    assert(data_size % (this->mesh_x_ * this->mesh_y_) == 0);
-    this->x_phase_msg_size_ = data_size / this->mesh_x_;
-    this->y_phase_msg_size_ = data_size / (this->mesh_x_ * this->mesh_y_);
+    assert(data_size % (group_x * group_y) == 0);
+    this->x_phase_msg_size_ = data_size / group_x;
+    this->y_phase_msg_size_ = data_size / group_x * group_y;
 
     this->packets_to_up_sent_ = 0;
     this->packets_to_down_sent_ = 0;
     this->packets_to_left_sent_ = 0;
     this->packets_to_right_sent_ = 0;
+
+
+    /////////////////////////////////// above are for all-gather and reduce-scatter /////////////////////////////////
+    ///////////////////////////////////////////// below are for all-toall ///////////////////////////////////////////
 
     this->alltoall_send_matrix_ = alltoall_send_matrix;
     this->alltoall_recv_matrix_ = alltoall_recv_matrix;
@@ -307,19 +350,6 @@ void MeshXY::run(EventType event, CallData* data) {
 
     } else if (event == EventType::PacketReceived) {
         
-        // forward packet to NPU
-        int msg_size;
-        if (comType == ComType::All_to_All || !this->in_x_phase_) {
-            // todo: fix dummy msg size
-            msg_size = this->y_phase_msg_size_;
-        } else {
-            msg_size = this->x_phase_msg_size_;
-        }
-        (new PacketBundle(stream->owner, stream, false, false, msg_size,
-                          MemBus::Transmition::Usual))
-            ->send_to_NPU();
-        
-        
         // handle recved packets
         if (comType == ComType::All_to_All) {
             ++(this->alltoall_packet_recved_);
@@ -342,20 +372,8 @@ void MeshXY::run(EventType event, CallData* data) {
             }
             if (this->ups_set_.size() == 0 && this->downs_set_.size() == 0) {
                 this->in_x_phase_ = false;
-                
                 // insert initial packets for the Y phase
-                for (const auto& left_id : this->lefts_) {
-                    (new PacketBundle(
-                        stream->owner,
-                        stream,
-                        false, // no need to process, initial packets
-                        false, // always set send_back to false for now
-                        this->y_phase_msg_size_,
-                        this->transmition_
-                    ))->send_to_MA();
-                }
-
-                for (const auto& right_id : this->rights_) {
+                for (int i = 0; i < this->lefts_.size() + this->rights_.size(); ++i) {
                     (new PacketBundle(
                         stream->owner,
                         stream,
@@ -384,6 +402,19 @@ void MeshXY::run(EventType event, CallData* data) {
                 exit();
             }
         }
+
+        // forward packet to NPU
+        int msg_size;
+        if (comType == ComType::All_to_All || !this->in_x_phase_) {
+            // todo: fix dummy msg size for alltoall
+            msg_size = this->y_phase_msg_size_;
+        } else {
+            msg_size = this->x_phase_msg_size_;
+        }
+        (new PacketBundle(stream->owner, stream, false, false, msg_size,
+                          MemBus::Transmition::Usual))
+            ->send_to_NPU();
+            
         // called when recved a packet
         // total_packets_received++;
         // insert_packet(nullptr);

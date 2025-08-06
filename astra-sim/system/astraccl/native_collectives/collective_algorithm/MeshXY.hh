@@ -23,6 +23,8 @@ class MeshXY : public Algorithm {
          MeshTopology* mesh_topology,
          uint64_t data_size,
          InjectionPolicy injection_policy,
+         int group_x,
+         int group_y,
          int part_x,
          int part_y,
          bool inter_part,
@@ -66,13 +68,20 @@ class MeshXY : public Algorithm {
     // bool processed;
     // bool send_back;
     // bool NPU_to_MA;
-    int mesh_x_;
+
+    int mesh_x_; // mesh dim
     int mesh_y_;
-    int mesh_i_;
+    int mesh_i_; // global index in the mesh
     int mesh_j_;
-    int part_x_;
+
+    int group_x_; // EP group x dim
+    int group_y_;
+    int group_i_; // index of group in mesh
+    int group_j_;
+
+    int part_x_; // partition x dim
     int part_y_;
-    int part_i_;
+    int part_i_; // index of partition in group
     int part_j_;
 
     bool inter_part_;
