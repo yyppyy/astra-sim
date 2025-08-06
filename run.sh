@@ -54,10 +54,10 @@ echo ""
 # cd ${CHAKRA_DIR}
 # pip3 install .
 
-${CHAKRA_CONVERTER} Yaml \
-    --input=${WORKLOAD_CSV} \
-    --output=${WORKLOAD_PREFIX} \
-    --num-npus=1024
+# ${CHAKRA_CONVERTER} Yaml \
+#     --input=${WORKLOAD_CSV} \
+#     --output=${WORKLOAD_PREFIX} \
+#     --num-npus=1024
     
 echo "[ASTRA-sim] Running ASTRA-sim Example with Analytical Network Backend..."
 echo ""
@@ -71,6 +71,8 @@ ${ASTRA_SIM} \
     --system-configuration=${SYSTEM} \
     --remote-memory-configuration=${REMOTE_MEMORY} \
     --network-configuration=${NETWORK}
+
+# echo "${ASTRA_SIM} --workload-configuration=${WORKLOAD_PREFIX} --system-configuration=${SYSTEM} --remote-memory-configuration=${REMOTE_MEMORY} --network-configuration=${NETWORK}"
 
 # finalize
 echo ""

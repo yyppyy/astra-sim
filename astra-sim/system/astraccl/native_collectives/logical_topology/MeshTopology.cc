@@ -29,7 +29,7 @@ MeshTopology::MeshTopology(int dimension, int id, int npus_count)
     this->y_ = cols;
     
     LoggerFactory::get_logger("system::topology::MeshTopology")
-        ->info("custom mesh, id: {}, x: {}, y: {}, total nodes: {} ",
+        ->debug("custom mesh, id: {}, x: {}, y: {}, total nodes: {} ",
                id, rows, cols, npus_count);
 
 }

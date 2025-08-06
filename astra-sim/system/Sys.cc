@@ -620,12 +620,16 @@ void Sys::try_register_event(Callable* callable,
 }
 
 void Sys::handleEvent(void* arg) {
+
     if (arg == nullptr) {
+    // printf("tick %ld empty event\n", Sys::boostedTick());
         return;
     }
     BasicEventHandlerData* ehd = (BasicEventHandlerData*)arg;
     int id = ehd->sys_id;
     EventType event = ehd->event;
+
+    // printf("tick %ld event %ld\n", Sys::boostedTick(), event);
 
     if (event == EventType::CallEvents) {
         all_sys[id]->call_events();
@@ -909,7 +913,9 @@ DataSet* Sys::generate_collective(
                     group_y,
                     part_x,
                     part_y,
-                    inter_part);
+                    inter_part,
+                    alltoall_send_matrix,
+                    alltoall_recv_matrix);
                 vect.push_back(phase);
                 remain_size = phase.final_data_size;
             }
@@ -1276,10 +1282,10 @@ uint64_t Sys::determine_chunk_size(uint64_t& size, ComType type) {
     // We want the collective size to have minimum size, otherwise, there is a
     // possibility of size overflow due to further dividing it to more
     // fine-grained messages
-    if (type != ComType::All_Gather && this->total_nodes > chunk_size) {
-        chunk_size = this->total_nodes;
-        size = preferred_dataset_splits * chunk_size;
-    }
+    // if (type != ComType::All_Gather && this->total_nodes > chunk_size) {
+    //     chunk_size = this->total_nodes;
+    //     size = preferred_dataset_splits * chunk_size;
+    // }
     return chunk_size;
 }
 
@@ -1494,11 +1500,9 @@ void Sys::proceed_to_next_vnet_baseline(StreamBaseline* stream) {
 
     stream->net_message_latency.push_back(0);
     stream->net_message_counter = 0;
-
     if (stream->my_current_phase.enabled) {
         insert_stream(&active_Streams[stream->current_queue_id], stream);
     }
-
     stream->state = StreamState::Ready;
 
     if (previous_vnet >= 0) {
@@ -1533,6 +1537,7 @@ int Sys::front_end_sim_send(Tick delay,
         return rendezvous_sim_send(delay, buffer, count, type, dst, tag,
                                    request, msg_handler, fun_arg);
     } else {
+        // printf("front_end_sim_send %d %d\n", dst, tag);
         return sim_send(delay, buffer, count, type, dst, tag, request,
                         msg_handler, fun_arg);
     }

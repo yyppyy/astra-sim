@@ -10,6 +10,7 @@ LICENSE file in the root directory of this source tree.
 #include "astra-sim/system/MyPacket.hh"
 #include "astra-sim/system/astraccl/Algorithm.hh"
 #include "astra-sim/system/astraccl/native_collectives/logical_topology/MeshTopology.hh"
+#include "astra-sim/common/Logging.hh"
 
 #include <unordered_set>
 #include <vector>
