@@ -90,7 +90,7 @@ class MeshXY : public Algorithm {
 
     bool inter_part_;
     
-    bool in_x_phase_;
+    // bool in_x_phase_;
 
     std::vector<int> send_ups_;
     std::vector<int> send_downs_;

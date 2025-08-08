@@ -1,4 +1,4 @@
 topology: [ Mesh ]
-npus_count: [ 16 ]
+npus_count: [ 1024 ]
 bandwidth: [ 32.0 ]  # GB/s
 latency: [ 4.0 ]  # ns

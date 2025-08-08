@@ -74,7 +74,7 @@ MeshXY::MeshXY(ComType type,
 
     assert(type != ComType::All_Reduce);
     this->inter_part_ = inter_part;
-    this->in_x_phase_ = true;
+    // this->in_x_phase_ = true;
 
     this->send_ups_ = std::vector<int>{};
     this->send_downs_ = std::vector<int>{};
@@ -115,7 +115,7 @@ MeshXY::MeshXY(ComType type,
             for (int i = step_id_col_major(id, this->mesh_x_, this->mesh_y_, part_x, 0);
                     step < group_x / part_x - this->part_i_ - 1;
                     i = step_id_col_major(i, this->mesh_x_, this->mesh_y_, part_x, 0)) {
-                printf("debug1 id:%d, type:%d, down push:%d\n", this->id, this->comType, i);
+                // printf("debug1 id:%d, type:%d, down push:%d\n", this->id, this->comType, i);
                 this->send_downs_.push_back(i);
                 ++step;
             }
@@ -218,7 +218,7 @@ MeshXY::MeshXY(ComType type,
     this->instance_id_ = instance_count_[this->id];
 
     LoggerFactory::get_logger("system::collective::MeshXY")
-        ->debug("id:{} instance_id:{}, type:{}, mesh:({},{}), group:({},{}), partition:({},{}), mesh_idx:({},{}), group_idx:({},{}), partition_idx:({},{}), inter_part:{}, x_msg_size:{}, y_msg_size:{}",
+        ->debug("id:{} instance:{}, type:{}, mesh:({},{}), group:({},{}), partition:({},{}), mesh_idx:({},{}), group_idx:({},{}), partition_idx:({},{}), inter_part:{}, x_msg_size:{}, y_msg_size:{}",
                this->id, this->instance_id_, (int)(this->comType),
                 this->mesh_x_, this->mesh_y_, this->group_x_, this->group_y_, this->part_x_, this->part_y_,
                 this->mesh_i_, this->mesh_j_, this->group_i_, this->group_j_, this->part_i_, this->part_j_,
@@ -354,10 +354,12 @@ void MeshXY::run(EventType event, CallData* data) {
             } else {
                 dst = this->alltoall_send_matrix_[this->alltoall_packet_sent_].first;
                 msg_size = this->alltoall_send_matrix_[this->alltoall_packet_sent_].second;
+                ++(this->alltoall_packet_sent_);
             }
-            ++(this->alltoall_packet_sent_);
-            this->done_alltoall_send_ = true;
-        } else if (this->in_x_phase_) {
+            if (this->alltoall_packet_sent_ == this->alltoall_send_matrix_.size()) {
+                this->done_alltoall_send_ = true;
+            }
+        } else if (!this->done_x_phase_send_) {
             bool send2up;
             if (this->packets_to_up_sent_ == this->send_ups_.size()) {
                 send2up = false;
@@ -371,8 +373,8 @@ void MeshXY::run(EventType event, CallData* data) {
                 dst = this->send_ups_[this->packets_to_up_sent_];
                 ++(this->packets_to_up_sent_);
             } else {
-                printf("debug2 id: %d, type:%d, in x: %d, done x send: %d, done x recv: %d, done y send: %d, done y recv: %d, send_down idx:%d, size:%d\n", this->id, this->comType, this->in_x_phase_,
-                    this->done_x_phase_send_, this->done_x_phase_recv_, this->done_y_phase_send_, this->done_y_phase_recv_, this->packets_to_down_sent_, this->send_downs_.size());
+                // printf("debug2 id: %d, type:%d, in x: %d, done x send: %d, done x recv: %d, done y send: %d, done y recv: %d, send_down idx:%d, size:%d\n", this->id, this->comType, this->in_x_phase_,
+                    // this->done_x_phase_send_, this->done_x_phase_recv_, this->done_y_phase_send_, this->done_y_phase_recv_, this->packets_to_down_sent_, this->send_downs_.size());
                 dst = this->send_downs_[this->packets_to_down_sent_];
                 ++(this->packets_to_down_sent_);
             }
@@ -381,9 +383,9 @@ void MeshXY::run(EventType event, CallData* data) {
             if (this->packets_to_up_sent_ == this->send_ups_.size() && this->packets_to_down_sent_ == this->send_downs_.size()) {
                 // all done with x phase send
                 this->done_x_phase_send_ = true;
-                if (this->done_x_phase_recv_) {
-                    this->in_x_phase_ = false;
-                }
+                // if (this->done_x_phase_recv_) {
+                //     this->in_x_phase_ = false;
+                // }
             }
         } else {
             bool send2left;
@@ -446,7 +448,7 @@ void MeshXY::run(EventType event, CallData* data) {
         // if (this->comType == ComType::All_to_All && this->alltoall_recv_matrix_.size() == 0) {
         if (this->all_done()) {
             LoggerFactory::get_logger("system::collective::MeshXY")
-                ->debug("id:{}, skip all_to_all recv and exit", this->id);
+                ->debug("id:{}, skip recv and exit", this->id);
             exit();
         }
 
@@ -467,7 +469,7 @@ void MeshXY::run(EventType event, CallData* data) {
                      ->debug("id:{}, done all_to_all recv and exit", this->id);
                 this->done_alltoall_recv_ = true;
             }
-        } else if (this->in_x_phase_) {
+        } else if (!this->done_x_phase_recv_) {
             bool from_up = this->recv_ups_.find(src) != this->recv_ups_.end();
             bool from_down = this->recv_downs_.find(src) != this->recv_downs_.end();
             if (from_up) {
@@ -477,6 +479,7 @@ void MeshXY::run(EventType event, CallData* data) {
                 assert(!from_up);
                 this->recv_downs_.erase(src);
             } else{
+                printf("id:%d instance:%d unexpected recv from %d\n", this->id, this->instance_id_, src);
                 assert(0);
             }
             LoggerFactory::get_logger("system::collective::MeshXY")
@@ -486,9 +489,9 @@ void MeshXY::run(EventType event, CallData* data) {
                     1);
             if (this->recv_ups_.size() == 0 && this->recv_downs_.size() == 0) {
                 this->done_x_phase_recv_ = true;
-                if (this->done_x_phase_send_) {
-                    this->in_x_phase_ = false;
-                }
+                // if (this->done_x_phase_send_) {
+                //     this->in_x_phase_ = false;
+                // }
                 
                 // if (this->recv_lefts_.size() == 0 && this->recv_rights_.size() == 0) {
                 //     LoggerFactory::get_logger("system::collective::MeshXY")
@@ -621,18 +624,18 @@ void MeshXY::run(EventType event, CallData* data) {
                 this->done_alltoall_recv_ = true;
             }
         } else {
-            assert(this->in_x_phase_);
+            // assert(this->in_x_phase_);
             auto& srcs1 = this->recv_ups_;
             auto& srcs2 = this->recv_downs_;
             int msg_size = this->x_phase_msg_size_;
-            printf("debug3 id:%d up len %d, down len %d\n", this->id, srcs1.size(), srcs2.size());
+            // printf("debug3 id:%d up len %d, down len %d\n", this->id, srcs1.size(), srcs2.size());
             if (srcs1.size() + srcs2.size() == 0) {
                 // for any tile, if no packets to recv in X phase,
                 // the only possibility is that the x dim is 1
                 // so we can fast forward to Y phase
                 LoggerFactory::get_logger("system::collective::MeshXY")
                     ->debug("id:{}, fast-forward to Y-phase", this->id);
-                this->in_x_phase_ = false;
+                // this->in_x_phase_ = false;
                 srcs1 = this->recv_lefts_;
                 srcs2 = this->recv_rights_;
                 assert(srcs1.size() + srcs2.size() > 0);
@@ -693,7 +696,8 @@ void MeshXY::run(EventType event, CallData* data) {
                 msg_sizes.push_back(8);
             }
         } else {
-            if (this->in_x_phase_) {
+            if (!this->done_x_phase_send_) {
+            // if (this->in_x_phase_) {
                 for (int i = 0; i < this->send_ups_.size() + this->send_downs_.size(); ++i) {
                     msg_sizes.push_back(this->x_phase_msg_size_);
                 }
