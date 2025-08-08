@@ -26,8 +26,10 @@ void CmdLineParser::define_options() noexcept {
                                        "Remote memory configuration file",
                                        cxxopts::value<std::string>())(
         "network-configuration", "Network configuration file",
-        cxxopts::value<std::string>())(
+        cxxopts::value<std::string>()->default_value("empty"))(
         "logging-configuration", "Logging configuration file",
+        cxxopts::value<std::string>()->default_value("empty"))(
+        "log-output-path", "Logging output path",
         cxxopts::value<std::string>()->default_value("empty"))(
         "num-queues-per-dim", "Number of queues per each dimension",
         cxxopts::value<int>()->default_value("1"))(

@@ -17,11 +17,13 @@ class LoggerFactory {
     static std::shared_ptr<spdlog::logger> get_logger(
         const std::string& logger_name);
     static void init(const std::string& log_conf_path = "empty");
+    static void set_output_path(const std::string& log_output_path = "empty");
     static void shutdown(void);
 
   private:
     static void init_default_components();
     static std::unordered_set<spdlog::sink_ptr> default_sinks;
+    static std::string log_output_path_;
 };
 
 }  // namespace AstraSim

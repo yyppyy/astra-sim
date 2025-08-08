@@ -25,6 +25,7 @@ WORKLOAD_PREFIX="${WORKLOAD_DIR:?}/${MODEL:?}"
 SYSTEM="${MOE_DIR:?}/system.json"
 NETWORK="${MOE_DIR:?}/network.yml"
 REMOTE_MEMORY="${MOE_DIR:?}/remote_memory.json"
+LOG_OUTPUT_PREFIX="${MOE_DIR:?}/results/log"
 
 NUM_NPUS=1024
 
@@ -133,12 +134,13 @@ case "$ACTION" in
     NUM_RUNS=$(( B_END - B_START + 1 ))
     echo "[ASTRA-sim] Launching batches ${B_START}..${B_END} (${NUM_RUNS} run(s))..."
     for (( i=B_START; i<=B_END; ++i )); do
-      echo "[RUN][astra][$i] ${ASTRA_SIM} --workload-configuration=${WORKLOAD_PREFIX}_${i} --system-configuration=${SYSTEM} --remote-memory-configuration=${REMOTE_MEMORY} --network-configuration=${NETWORK}"
+      echo "[RUN][astra][$i] ${ASTRA_SIM} --workload-configuration=${WORKLOAD_PREFIX}_${i} --system-configuration=${SYSTEM} --remote-memory-configuration=${REMOTE_MEMORY} --network-configuration=${NETWORK} --log-output-path=${LOG_OUTPUT_PREFIX}_${i}.txt --index=${i}"
       "${ASTRA_SIM}" \
         --workload-configuration="${WORKLOAD_PREFIX}_${i}" \
         --system-configuration="${SYSTEM}" \
         --remote-memory-configuration="${REMOTE_MEMORY}" \
         --network-configuration="${NETWORK}" \
+        --log-output-path="${LOG_OUTPUT_PREFIX}_${i}.txt" \
         --index="${i}" &
     done
     wait

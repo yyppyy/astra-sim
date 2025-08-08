@@ -4,14 +4,17 @@ namespace AstraSim {
 
 std::unordered_set<spdlog::sink_ptr> LoggerFactory::default_sinks;
 
+std::string LoggerFactory::log_output_path_;
+
 std::shared_ptr<spdlog::logger> LoggerFactory::get_logger(
     const std::string& logger_name) {
     constexpr bool ENABLE_DEFAULT_SINK_FOR_OTHER_LOGGERS = true;
     auto logger = spdlog::get(logger_name);
     if (logger == nullptr) {
         // logger = spdlog::create_async<spdlog::sinks::stdout_color_sink_mt>(logger_name);
-        logger = spdlog::stdout_color_mt(logger_name);
-        logger->set_level(spdlog::level::trace);
+        // fixme hardcoded
+        logger = spdlog::basic_logger_mt(logger_name, log_output_path_);
+        logger->set_level(spdlog::level::info);
         logger->flush_on(spdlog::level::debug);
     }
     if constexpr (!ENABLE_DEFAULT_SINK_FOR_OTHER_LOGGERS) {
@@ -33,6 +36,13 @@ void LoggerFactory::init(const std::string& log_config_path) {
     }
     init_default_components();
 }
+
+void LoggerFactory::set_output_path(const std::string& log_output_path) {
+    if (log_output_path != "empty") {
+        log_output_path_ = log_output_path;
+    }    
+}
+
 
 void LoggerFactory::shutdown(void) {
     default_sinks.clear();
