@@ -13,6 +13,7 @@ LICENSE file in the root directory of this source tree.
 #include "astra-sim/common/Logging.hh"
 
 #include <unordered_set>
+#include <unordered_map>
 #include <vector>
 
 namespace AstraSim {
@@ -43,6 +44,8 @@ class MeshXY : public Algorithm {
     // void insert_packet(Callable* sender);
     // bool ready();
     void exit();
+
+    bool all_done();
 
     // RingTopology::Direction dimension;
     // RingTopology::Direction direction;
@@ -89,15 +92,15 @@ class MeshXY : public Algorithm {
     
     bool in_x_phase_;
 
-    std::vector<int> ups_;
-    std::vector<int> downs_;
-    std::vector<int> lefts_;
-    std::vector<int> rights_;
+    std::vector<int> send_ups_;
+    std::vector<int> send_downs_;
+    std::vector<int> send_lefts_;
+    std::vector<int> send_rights_;
     
-    std::unordered_set<int> ups_set_;
-    std::unordered_set<int> downs_set_;
-    std::unordered_set<int> lefts_set_;
-    std::unordered_set<int> rights_set_;
+    std::unordered_set<int> recv_ups_;
+    std::unordered_set<int> recv_downs_;
+    std::unordered_set<int> recv_lefts_;
+    std::unordered_set<int> recv_rights_;
     
     int x_phase_msg_size_;
     int y_phase_msg_size_;
@@ -112,6 +115,16 @@ class MeshXY : public Algorithm {
 
     int alltoall_packet_sent_;
     int alltoall_packet_recved_;
+
+    bool done_x_phase_send_;
+    bool done_x_phase_recv_;
+    bool done_y_phase_send_;
+    bool done_y_phase_recv_;
+    bool done_alltoall_send_;
+    bool done_alltoall_recv_;
+
+    int instance_id_;
+    static std::unordered_map<int, int> instance_count_;
 };
 
 }  // namespace AstraSim

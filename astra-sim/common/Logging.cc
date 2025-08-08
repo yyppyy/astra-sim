@@ -9,7 +9,8 @@ std::shared_ptr<spdlog::logger> LoggerFactory::get_logger(
     constexpr bool ENABLE_DEFAULT_SINK_FOR_OTHER_LOGGERS = true;
     auto logger = spdlog::get(logger_name);
     if (logger == nullptr) {
-        logger = spdlog::create_async<spdlog::sinks::stdout_color_sink_mt>(logger_name);
+        // logger = spdlog::create_async<spdlog::sinks::stdout_color_sink_mt>(logger_name);
+        logger = spdlog::stdout_color_mt(logger_name);
         logger->set_level(spdlog::level::trace);
         logger->flush_on(spdlog::level::debug);
     }
