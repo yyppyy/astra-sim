@@ -1,25 +1,4 @@
-#!/bin/bash
-
-# compile astra sim: https://astra-sim.github.io/astra-sim-docs/getting-started/build.html
-# git clone git@github.com:astra-sim/astra-sim.git
-# ASTRA_SIM=$(realpath ./astra-sim)
-# cd ${ASTRA_SIM}
-# git submodule update --init --recursive
-# ./build/astra_analytical/build.sh
-# or for debug
-# ./build/astra_analytical/build.sh -d
-
-
-# compile chakra: 
-# cd astra-sim/extern/graph_frontend/chakra
-# pip3 install .
-# or maybe:
-# echo "[ASTRA-sim] Installing Chakra..."
-# echo ""
-# "${PROJECT_DIR:?}"/utils/install_chakra.sh
-# remember to add the install path e.g.,:    export PATH=$HOME/.local/bin:$PATH
-
-# a built-in example at examples/network_analytical/run_network_analytical.sh
+#!/usr/bin/env bash
 set -e
 
 ## ******************************************************************************
@@ -38,8 +17,7 @@ CHAKRA_DIR="${PROJECT_DIR:?}/extern/graph_frontend/chakra"
 
 # paths
 ASTRA_SIM="${PROJECT_DIR:?}/build/astra_analytical/build/bin/AstraSim_Analytical_Congestion_Aware"
-# CHAKRA_CONVERTER="${CHAKRA_DIR:?}/src/converter/converter.py"
-CHAKRA_CONVERTER="chakra_converter"
+CHAKRA_CONVERTER="chakra_converter"  # must be on PATH
 MODEL="deepseek"
 WORKLOAD_TXT="${MOE_DIR:?}/${MODEL:?}.txt"
 WORKLOAD_CSV="${MOE_DIR:?}/${MODEL:?}.csv"
@@ -48,32 +26,128 @@ SYSTEM="${MOE_DIR:?}/system.json"
 NETWORK="${MOE_DIR:?}/network.yml"
 REMOTE_MEMORY="${MOE_DIR:?}/remote_memory.json"
 
-echo "[ASTRA-sim] Generating Chakra trace..."
-echo ""
+NUM_NPUS=1024
 
-# cd ${CHAKRA_DIR}
-# pip3 install .
+usage() {
+  cat <<EOF
+Usage:
+  $0 <action> [options]
 
-# ${CHAKRA_CONVERTER} Yaml \
-#     --input=${WORKLOAD_CSV} \
-#     --output=${WORKLOAD_PREFIX} \
-#     --num-npus=1024
-    
-echo "[ASTRA-sim] Running ASTRA-sim Example with Analytical Network Backend..."
-echo ""
+Actions (exactly one):
+  build_astra        [-l | -d]   Build Astra-Sim (debug if -l or -d present)
+  build_chakra                   Build & install Chakra (pip install .)
+  run_chakra         -b <N>      Launch N chakra runs with --index=0..N-1
+  run_astra          -b <N>      Launch N astra runs with --index=0..N-1
 
-# visualize
-# chakra_visualizer --input_filename moe/workload/deepseek.0.et --output_filename=moe/workload/tmp.pdf
+Examples:
+  $0 build_astra
+  $0 build_astra -d
+  $0 build_chakra
+  $0 run_chakra -b 4
+  $0 run_astra -b 8
+EOF
+}
 
-# run ASTRA-sim\
-${ASTRA_SIM} \
-    --workload-configuration=${WORKLOAD_PREFIX} \
-    --system-configuration=${SYSTEM} \
-    --remote-memory-configuration=${REMOTE_MEMORY} \
-    --network-configuration=${NETWORK}
+[ $# -ge 1 ] || { usage; exit 1; }
+ACTION="$1"; shift || true
 
-# echo "${ASTRA_SIM} --workload-configuration=${WORKLOAD_PREFIX} --system-configuration=${SYSTEM} --remote-memory-configuration=${REMOTE_MEMORY} --network-configuration=${NETWORK}"
+case "$ACTION" in
+  build_astra)
+    # Options: -l or -d (pass through to build.sh)
+    DEBUG_FLAG=""
+    OPTIND=1
+    while getopts "ld" opt; do
+      case "$opt" in
+        l) DEBUG_FLAG="-l" ;;
+        d) DEBUG_FLAG="-d" ;;
+        \?) echo "Unknown option: -$OPTARG" >&2; usage; exit 1 ;;
+      esac
+    done
+    shift $((OPTIND - 1))
 
-# finalize
-echo ""
-echo "[ASTRA-sim] Finished the execution."
+    echo "[ASTRA-sim] Building Astra-Sim (${DEBUG_FLAG:-release})..."
+    cd "${PROJECT_DIR}"
+    git submodule update --init --recursive
+    ./build/astra_analytical/build.sh ${DEBUG_FLAG}
+    echo "[ASTRA-sim] Build complete."
+    ;;
+
+  build_chakra)
+    echo "[ASTRA-sim] Building & installing Chakra..."
+    cd "${CHAKRA_DIR}"
+    # Ensure ~/.local/bin is on PATH for user installs
+    export PATH="$HOME/.local/bin:$PATH"
+    pip3 install .
+    echo "[ASTRA-sim] Chakra installed. (Tip: ensure \$HOME/.local/bin is in PATH)"
+    ;;
+
+  run_chakra)
+    # Option: -b <start,end> (or start:end), inclusive
+    B_RANGE=
+    OPTIND=1
+    while getopts ":b:" opt; do
+      case "$opt" in
+        b) B_RANGE="$OPTARG" ;;
+        \?) echo "Unknown option: -$OPTARG" >&2; usage; exit 1 ;;
+        :)  echo "Option -$OPTARG requires an argument." >&2; usage; exit 1 ;;
+      esac
+    done
+    [ -n "$B_RANGE" ] || { echo "Missing -b <start,end> for run_chakra"; usage; exit 1; }
+
+    IFS=',:' read -r B_START B_END <<< "$B_RANGE"
+    [[ $B_START =~ ^[0-9]+$ && $B_END =~ ^[0-9]+$ ]] || { echo "Invalid -b format. Use -b start,end"; exit 1; }
+    (( B_END >= B_START )) || { echo "Invalid -b: end < start"; exit 1; }
+
+    : "${NUM_NPUS:=1024}"
+    NUM_RUNS=$(( B_END - B_START + 1 ))
+    echo "[Chakra] Launching batches ${B_START}..${B_END} (${NUM_RUNS} run(s))..."
+    for (( i=B_START; i<=B_END; ++i )); do
+      echo "[RUN][chakra][$i] ${CHAKRA_CONVERTER} Yaml --input=${WORKLOAD_CSV} --output=${WORKLOAD_PREFIX}_${i} --num-npus=${NUM_NPUS} --batch-id=${i}"
+      "${CHAKRA_CONVERTER}" Yaml \
+        --input="${WORKLOAD_CSV}" \
+        --output="${WORKLOAD_PREFIX}_${i}" \
+        --num-npus="${NUM_NPUS}" \
+        --batch-id="${i}" &
+    done
+    wait
+    echo "[Chakra] All runs finished."
+    ;;
+
+  run_astra)
+    # Option: -b <start,end> (or start:end), inclusive
+    B_RANGE=
+    OPTIND=1
+    while getopts ":b:" opt; do
+      case "$opt" in
+        b) B_RANGE="$OPTARG" ;;
+        \?) echo "Unknown option: -$OPTARG" >&2; usage; exit 1 ;;
+        :)  echo "Option -$OPTARG requires an argument." >&2; usage; exit 1 ;;
+      esac
+    done
+    [ -n "$B_RANGE" ] || { echo "Missing -b <start,end> for run_astra"; usage; exit 1; }
+
+    IFS=',:' read -r B_START B_END <<< "$B_RANGE"
+    [[ $B_START =~ ^[0-9]+$ && $B_END =~ ^[0-9]+$ ]] || { echo "Invalid -b format. Use -b start,end"; exit 1; }
+    (( B_END >= B_START )) || { echo "Invalid -b: end < start"; exit 1; }
+
+    NUM_RUNS=$(( B_END - B_START + 1 ))
+    echo "[ASTRA-sim] Launching batches ${B_START}..${B_END} (${NUM_RUNS} run(s))..."
+    for (( i=B_START; i<=B_END; ++i )); do
+      echo "[RUN][astra][$i] ${ASTRA_SIM} --workload-configuration=${WORKLOAD_PREFIX}_${i} --system-configuration=${SYSTEM} --remote-memory-configuration=${REMOTE_MEMORY} --network-configuration=${NETWORK}"
+      "${ASTRA_SIM}" \
+        --workload-configuration="${WORKLOAD_PREFIX}_${i}" \
+        --system-configuration="${SYSTEM}" \
+        --remote-memory-configuration="${REMOTE_MEMORY}" \
+        --network-configuration="${NETWORK}" \
+        --index="${i}" &
+    done
+    wait
+    echo "[ASTRA-sim] All runs finished."
+    ;;
+
+  *)
+    echo "Unknown action: ${ACTION}" >&2
+    usage
+    exit 1
+    ;;
+esac
